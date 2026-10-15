@@ -127,19 +127,25 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
       // calls console.log() to export the record we just created.
       instrumentation._isEmitting = true;
       try {
-        const otelLogger = instrumentation._getOTelLogger();
-        const timestamp = Date.now();
-        // Pass the active context so the Logs SDK can associate the
-        // LogRecord with the currently active span (trace context).
-        otelLogger.emit({
-          timestamp,
-          observedTimestamp: timestamp,
-          severityNumber,
-          severityText: CONSOLE_SEVERITY_TEXT[methodName],
-          body: message,
-          context: context.active(),
-        });
-
+        try {
+          const otelLogger = instrumentation._getOTelLogger();
+          const timestamp = Date.now();
+          // Pass the active context so the Logs SDK can associate the
+          // LogRecord with the currently active span (trace context).
+          otelLogger.emit({
+            timestamp,
+            observedTimestamp: timestamp,
+            severityNumber,
+            severityText: CONSOLE_SEVERITY_TEXT[methodName],
+            body: message,
+            context: context.active(),
+          });
+        } catch {
+          // Telemetry must never change application behavior. A misconfigured
+          // Logs SDK should not prevent the original console call.
+        }
+        // Keep the guard set while calling the original: console.trace and
+        // custom Console implementations can delegate to another method.
         return original.apply(this, args);
       } finally {
         instrumentation._isEmitting = false;

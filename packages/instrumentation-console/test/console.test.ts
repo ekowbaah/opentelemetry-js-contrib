@@ -42,6 +42,20 @@ describe('ConsoleInstrumentation', () => {
   });
 
   describe('log sending', () => {
+    it('still calls console when the OpenTelemetry logger throws', () => {
+      const currentLogger = (instrumentation as any)._otelLogger;
+      (instrumentation as any)._otelLogger = {
+        emit() {
+          throw new Error('export failed');
+        },
+      };
+      try {
+        assert.doesNotThrow(() => console.log('application log'));
+      } finally {
+        (instrumentation as any)._otelLogger = currentLogger;
+      }
+    });
+
     it('emits LogRecord for console.log', () => {
       console.log('hello world');
       const logRecords = memExporter.getFinishedLogRecords();
